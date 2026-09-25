@@ -29,7 +29,7 @@ const PARAMS = {
   ph:   { nombre: 'pH',                 unidad: '',      dec: 1, paso: 0.1, escala: [4, 9],   margenUrgente: 0.4 },
   ce:   { nombre: 'Conductividad (CE)', unidad: 'mS/cm', dec: 1, paso: 0.1, escala: [0, 4],   margenUrgente: 0.4 }
 };
-const LECHUGA = { temp: [15, 24], hum: [60, 80], ph: [5.8, 6.2], ce: [1.2, 1.8], nivelMin: 30 };
+const LECHUGA = { temp: [16, 21], hum: [50, 70], ph: [5.5, 6.5], ce: [0.8, 1.4], nivelMin: 20 };
 const TIPOS_LECHUGA = ['Mantecosa', 'Crespa', 'Morada', 'Romana', 'Francesa', 'Otra'];
 const SISTEMAS = { nft: 'NFT', flotante: 'Raíz flotante', sustrato: 'Sustrato', torre: 'Torre vertical', otro: 'Otro' };
 const NOMBRES_AVISO = { temp: 'Temperatura', hum: 'Humedad', ph: 'pH', ce: 'Conductividad', nivel: 'Nivel de caldo', energia: 'Corte de luz' };
