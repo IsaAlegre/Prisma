@@ -29,7 +29,7 @@ const PARAMS = {
   ph:   { nombre: 'pH',                 unidad: '',      dec: 1, paso: 0.1, escala: [4, 9],   margenUrgente: 0.4 },
   ce:   { nombre: 'Conductividad (CE)', unidad: 'mS/cm', dec: 1, paso: 0.1, escala: [0, 4],   margenUrgente: 0.4 }
 };
-const LECHUGA = { temp: [15, 24], hum: [60, 80], ph: [5.8, 6.4], ce: [1.2, 1.8], nivelMin: 30 };
+const LECHUGA = { temp: [15, 24], hum: [60, 80], ph: [5.8, 6.2], ce: [1.2, 1.8], nivelMin: 30 };
 const TIPOS_LECHUGA = ['Mantecosa', 'Crespa', 'Morada', 'Romana', 'Francesa', 'Otra'];
 const SISTEMAS = { nft: 'NFT', flotante: 'Raíz flotante', sustrato: 'Sustrato', torre: 'Torre vertical', otro: 'Otro' };
 const NOMBRES_AVISO = { temp: 'Temperatura', hum: 'Humedad', ph: 'pH', ce: 'Conductividad', nivel: 'Nivel de caldo', energia: 'Corte de luz' };
@@ -49,18 +49,18 @@ const RECOMENDACIONES = {
     bajo: ['Agregá de a poco corrector de pH (base).', 'Esperá 15 minutos y volvé a medir.']
   },
   ce: {
-    alto: ['Agregá agua limpia al tanque.', 'Volvé a medir después de mezclar.'],
+    alto: ['Agregá agua limpia al tanque.', 'Volvé a medir después de mezclar.', 'Con calor es común que suba: la planta toma más agua que nutrientes.'],
     bajo: ['Agregá solución nutritiva A y B según tu fórmula.', 'Mezclá bien y volvé a medir.']
   },
   nivel: ['Llená el tanque con agua limpia.', 'Después de llenar, controlá pH y CE.', 'Revisá caños y uniones por si hay pérdidas.'],
   generador: ['Revisá que el grupo electrógeno tenga combustible.', 'Confirmá que la bomba siga funcionando.'],
-  sin: ['Encendé el grupo electrógeno.', 'Sin luz la bomba está parada: las raíces se secan rápido.', 'Si el corte sigue, mojá las raíces a mano.']
+  sin: ['Encendé el grupo electrógeno.', 'Sin luz la bomba está parada: las raíces se secan rápido.', 'Si el corte sigue, mojá las raíces a mano cada 30 minutos.']
 };
 
 // ---------------------------------------------------------------------
 // 3. Configuración del productor (se guarda en el celular)
 // ---------------------------------------------------------------------
-const CLAVE = 'monitor-hidro-v4';
+const CLAVE = 'monitor-hidro-v5';
 const copiar = o => JSON.parse(JSON.stringify(o));
 function cargar() { try { return JSON.parse(localStorage.getItem(CLAVE)); } catch (e) { return null; } }
 function guardar() {

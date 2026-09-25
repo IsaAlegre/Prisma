@@ -21,7 +21,7 @@ const ARCHIVO = path.join(__dirname, 'datos.json');
 webpush.setVapidDetails('mailto:equipo@example.com', process.env.VAPID_PUBLICA, process.env.VAPID_PRIVADA);
 
 // ---------- datos guardados ----------
-const LECHUGA = { temp: [15, 24], hum: [60, 80], ph: [5.8, 6.4], ce: [1.2, 1.8], nivelMin: 30 };
+const LECHUGA = { temp: [15, 24], hum: [60, 80], ph: [5.8, 6.2], ce: [1.2, 1.8], nivelMin: 30 };
 let db = { config: { rangos: LECHUGA, avisos: { espera: 5, sirena: true, activos: { temp: true, hum: true, ph: true, ce: true, nivel: true, energia: true } } }, lecturas: [], cortes: [], suscripciones: [] };
 try { db = { ...db, ...JSON.parse(fs.readFileSync(ARCHIVO, 'utf8')) }; } catch (e) {}
 let guardarPendiente = null;

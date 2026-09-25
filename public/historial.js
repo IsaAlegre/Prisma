@@ -26,7 +26,7 @@ function generarDemo() {
     const t = ahora.getTime() - i * HORA_MS, h = new Date(t).getHours(), ciclo = Math.sin(2 * Math.PI * (h - 9) / 24);
     serie.temp.push({ t, v: 19.5 + 5.2 * ciclo + g() * 0.6 });
     serie.hum.push({ t, v: Math.min(97, 70 - 9.5 * ciclo + g() * 2) });
-    ph += 0.0062 + g() * 0.008; if (ph > 6.52) ph = 5.9 + r() * 0.05;          // el productor corrige
+    ph += 0.0045 + g() * 0.006; if (ph > 6.32) ph = 5.85 + r() * 0.05;          // el productor corrige
     serie.ph.push({ t, v: ph });
     ce -= 0.0046 + g() * 0.002; if (ce < 1.16) ce = 1.72 + r() * 0.04;          // repone solución
     serie.ce.push({ t, v: ce });
@@ -107,11 +107,11 @@ function recomendaciones(horas) {
     if (k === 'ph') {
       const p = pendientePorDia(datos);
       if (p > 0.05) out.push({ tipo: 'warn', titulo: `El pH sube unos ${num(p, 2)} por día`, texto: `Salió del rango ${tramosFuera(k, datos).length} veces. Medilo cada mañana y corregilo antes de que pase ${num(mx, 1)}.` });
-      else if (e.ok < 0.9) out.push({ tipo: 'warn', titulo: `El pH estuvo fuera del rango el ${num((1 - e.ok) * 100, 0)} % del tiempo`, texto: 'Controlalo dos veces por día y corregí de a poco.' });
+      else if (e.ok < 0.9) out.push({ tipo: 'warn', titulo: `El pH estuvo fuera del rango el ${num((1 - e.ok) * 100, 0)} % del tiempo`, texto: 'Medilo todos los días a la misma hora y corregí de a poco.' });
     }
     if (k === 'ce') {
       const cargas = tramosSubida(datos);
-      if (cargas >= 1 || pendientePorDia(datos) < -0.05) out.push({ tipo: 'info', titulo: 'La CE baja a medida que la planta consume nutrientes', texto: `Baja unos ${num(consumoDiario(datos), 2)} mS/cm por día. Reponé solución A y B cada ${Math.max(1, Math.floor((mx - mn) / consumoDiario(datos)))} días, antes de que baje de ${num(mn, 1)}.` });
+      if (cargas >= 1 || pendientePorDia(datos) < -0.05) out.push({ tipo: 'info', titulo: `La CE baja unos ${num(consumoDiario(datos), 2)} mS/cm por día`, texto: `La planta está tomando nutrientes. Reponé solución A y B cada ${Math.max(1, Math.floor((mx - mn) / consumoDiario(datos)))} días, antes de que baje de ${num(mn, 1)}. Si en días de calor la CE sube, agregá agua limpia.` });
     }
     if (k === 'nivel') {
       const llenados = tramosSubida(datos);
