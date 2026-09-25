@@ -1,6 +1,6 @@
 /* Service worker: guarda la app para abrirla sin conexión
    y muestra las notificaciones push que manda el servidor. */
-const CACHE = 'monitor-hidro-v4';
+const CACHE = 'monitor-hidro-v5';
 const ARCHIVOS = ['./', 'index.html', 'estilos.css', 'app.js', 'historial.js', 'manifest.webmanifest', 'iconos/icon-192.png', 'iconos/icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -9,11 +9,16 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
-// Archivos de la app: primero la caché. Datos (/api/...): siempre de la red.
+// Archivos de la app: primero la red (así siempre se ve la última versión);
+// si no hay conexión, se usa la copia guardada. Datos (/api/...): siempre de la red.
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.pathname.includes('/api/')) return;
-  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+  if (e.request.method !== 'GET' || url.pathname.includes('/api/') || url.origin !== location.origin) return;
+  e.respondWith(
+    fetch(e.request)
+      .then(r => { const copia = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copia)); return r; })
+      .catch(() => caches.match(e.request))
+  );
 });
 
 // Llega un aviso del servidor: { titulo, cuerpo, clave, urgente }

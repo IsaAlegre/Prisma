@@ -282,3 +282,4 @@ footer{margin-top:28px;font-size:.82rem;color:var(--muted);max-width:75ch}
 .panel,.stats,.dos{min-width:0;max-width:100%}
 html,body{overflow-x:hidden}
 @media (max-width:700px){ .wrap{padding-block:0 160px} }
+@media (max-width:700px){ .fab{padding:9px 14px;font-size:.9rem;right:12px} }
