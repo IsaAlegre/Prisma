@@ -27,7 +27,9 @@
       <span class="pill" id="conexion"><span class="dot"></span>ESP32 · Wi-Fi</span>
       <span class="pill mono" id="reloj">--:--</span>
       <button class="pill instalar" id="instalar" hidden>Instalar en el celular</button>
+      <button class="pill rol" id="rolActual" aria-haspopup="true" aria-expanded="false"></button>
     </div>
+    <div class="menu-rol" id="menuRol" hidden></div>
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Secciones">
@@ -40,6 +42,11 @@
   <!-- INICIO -->
   <section id="vista-inicio" role="tabpanel">
     <div class="estado" id="estado"></div>
+    <div class="ref-semaforo" aria-label="Referencia de colores">
+      <span><i class="c-crit"></i><b>Rojo</b> urgente: actuar ya</span>
+      <span><i class="c-warn"></i><b>Amarillo</b> revisar</span>
+      <span><i class="c-ok"></i><b>Verde</b> bien</span>
+    </div>
     <div class="tiles" id="tiles"></div>
     <button class="fab" id="abrirDemo" aria-expanded="false" aria-controls="demo">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 3l14 9-14 9V3z"/></svg>Simular
@@ -112,7 +119,8 @@
       <h2>Últimos avisos</h2>
       <div class="lista" id="lista"></div>
     </div>
-    <div class="panel">
+    <p class="permiso" id="permisoAvisos" hidden></p>
+    <div class="panel editable">
       <h2>Cuándo te avisamos</h2>
       <div class="form-grid">
         <label class="fld">Esperar antes de avisar
@@ -133,7 +141,8 @@
 
   <!-- CONFIGURAR -->
   <section id="vista-config" role="tabpanel" hidden>
-    <div class="panel">
+    <p class="permiso" id="permisoConfig" hidden></p>
+    <div class="panel editable">
       <h2>Mi cultivo</h2>
       <div class="cultivos" id="cultivos"></div>
       <div id="tipoCultivo"></div>
@@ -148,18 +157,27 @@
         <div class="acciones"><button class="btn primary" type="submit">Guardar producto</button><button class="btn" type="button" id="nCancelar">Cancelar</button></div>
       </form>
     </div>
-    <div class="panel">
+    <div class="panel editable">
       <h2>Valores ideales</h2>
       <p class="hint">Si un valor sale de este rango, te avisamos.</p>
       <div class="rangos" id="rangos"></div>
       <div class="acciones"><button class="btn" id="restablecer">Volver a los valores recomendados</button><span class="hint" id="guardado"></span></div>
     </div>
-    <div class="panel">
+    <div class="panel editable">
       <h2>Mi invernadero</h2>
       <div class="form-grid">
         <label class="fld">Nombre<input id="invNombre" placeholder="Ej.: Invernadero norte"></label>
         <label class="fld">Sistema<select id="invSistema"></select></label>
       </div>
+    </div>
+    <div class="panel solo-admin" id="panelEquipo">
+      <h2>Equipo y roles</h2>
+      <p class="hint">Cada persona tiene un rol. El rol define qué avisos le llegan y si puede cambiar la configuración.</p>
+      <div class="roles" id="roles"></div>
+      <h3 class="sub">Personas</h3>
+      <div class="personas" id="personas"></div>
+      <div class="err" id="equipoErr"></div>
+      <div class="acciones"><button class="btn" id="agregarPersona">Agregar persona</button></div>
     </div>
   </section>
 

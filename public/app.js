@@ -212,8 +212,9 @@ const peso = e => ({ ok: 0, warn: 1, crit: 2 }[e]);
 const desde = {};      // minuto en que empezó cada problema
 const activo = {};     // aviso enviado y todavía sin resolver
 let historialAvisos = [
-  { hora: '09:12', estado: 'ok', titulo: 'El pH volvió a la normalidad' },
-  { hora: '08:47', estado: 'warn', titulo: 'pH alto: 6,7', recomendaciones: RECOMENDACIONES.ph.alto }
+  { id: 's2', hora: '09:12', estado: 'ok', titulo: 'El pH volvió a la normalidad' },
+  { id: 's1', clave: 'ph', hora: '08:47', estado: 'warn', titulo: 'pH alto: 6,7', recomendaciones: RECOMENDACIONES.ph.alto,
+    resuelto: { por: 'Encargado/a', rol: 'Encargado', hora: '08:58' } }
 ];
 
 // En modo real esta misma lógica corre en el servidor, que es quien manda el push.
@@ -222,7 +223,10 @@ function revisarAvisos() {
     const r = evaluar(k);
     if (r.estado === 'ok' || !cfg.avisos.activos[k]) {
       desde[k] = null;
-      if (activo[k]) { agregarAviso({ clave: k, estado: 'ok', titulo: `${NOMBRES_AVISO[k]}: volvió a la normalidad` }); activo[k] = null; }
+      if (activo[k]) {
+        cerrarAvisos(k, { auto: 'normalizado', hora: hora(minuto) });   // lo viejo deja de mostrar recomendaciones
+        agregarAviso({ clave: k, estado: 'ok', titulo: `${NOMBRES_AVISO[k]}: volvió a la normalidad` }); activo[k] = null;
+      }
       continue;
     }
     if (desde[k] == null) desde[k] = minuto;
@@ -233,16 +237,20 @@ function revisarAvisos() {
 }
 function agregarAviso(a) {
   a.hora = hora(minuto);
+  a.id = a.id || 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  if (a.estado !== 'ok' && a.clave) cerrarAvisos(a.clave, { auto: 'reemplazado', hora: a.hora });  // un aviso más grave reemplaza al anterior
   historialAvisos.unshift(a);
   historialAvisos = historialAvisos.slice(0, 30);
-  notificar(a); notificacionSistema(a);
+  a.para = destinatarios(a.estado);                               // quiénes lo reciben según su rol
+  notificar(a);
+  if (meLlega(a.estado)) notificacionSistema(a);                   // en este celular, solo si mi rol lo recibe
   if (!$('vista-avisos').hidden) pintarLista();
   return a;
 }
 function notificar(a) {
   const el = document.createElement('div');
   el.className = 'toast ' + a.estado;
-  el.innerHTML = `<div class="a">${esc(cfg.invernadero.nombre || 'Mi invernadero')} · ${a.hora || hora(minuto)}${a.sirena ? ' · sirena encendida' : ''}</div><div class="b">${esc(a.titulo)}</div>${a.recomendaciones ? `<div class="c">${esc(a.recomendaciones[0])}</div>` : ''}`;
+  el.innerHTML = `<div class="a">${esc(cfg.invernadero.nombre || 'Mi invernadero')} · ${a.hora || hora(minuto)}${a.sirena ? ' · sirena encendida' : ''}${a.para ? ` · a ${a.para.length} ${a.para.length === 1 ? 'persona' : 'personas'}` : ''}</div><div class="b">${esc(a.titulo)}</div>${a.recomendaciones ? `<div class="c">${esc(a.recomendaciones[0])}</div>` : ''}`;
   $('toasts').prepend(el);
   const maximo = window.matchMedia('(max-width:700px)').matches ? 1 : 3;   // en el celular, de a uno
   while ($('toasts').children.length > maximo) $('toasts').lastChild.remove();
@@ -257,12 +265,13 @@ function etiqueta(k, r) {
   if (r.estado === 'ok') return '<span class="st">Bien</span>';
   const txt = r.estado === 'crit' ? 'Urgente' : 'Revisar';
   if (!cfg.avisos.activos[k]) return `<span class="st ${r.estado}">${txt} · aviso apagado</span>`;
+  if (activo[k] && activo[k].resuelto) return `<span class="st ${r.estado}">${txt} · en atención</span>`;
   if (activo[k]) return `<span class="st ${r.estado}">${txt} · te avisamos</span>`;
   const falta = Math.max(0, cfg.avisos.espera - (minuto - (desde[k] ?? minuto)));
   return `<span class="st ${r.estado}">${txt} · aviso en ${falta} min</span>`;
 }
 function tarjeta(k) {
-  const r = evaluar(k), cab = t => `<div class="h"><span class="icono">${ICONOS[k]}</span>${t}</div>`;
+  const r = evaluar(k), cab = t => `<div class="h"><span class="icono">${ICONOS[k]}</span><span class="hn">${t}</span><span class="semaforo" data-st="${r.estado}" aria-hidden="true"><i></i><i></i><i></i></span></div>`;
   if (k === 'energia') {
     const t = { red: 'Hay luz', generador: 'Con grupo electrógeno', sin: 'Sin energía' }[lectura.energia];
     return `<article class="tile" data-st="${r.estado}">${cab('Energía eléctrica')}<div class="v txt">${t}</div>${etiqueta(k, r)}</article>`;
@@ -285,10 +294,15 @@ function pintarInicio() {
   const icono = st === 'ok'
     ? '<svg width="26" height="26" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
     : '<svg width="26" height="26" viewBox="0 0 24 24"><path d="M12 6v7" stroke="#fff" stroke-width="2.8" stroke-linecap="round"/><circle cx="12" cy="17.5" r="1.7" fill="#fff"/></svg>';
-  const titulo = st === 'ok' ? 'Todo bien en el invernadero' : st === 'crit' ? 'Atención urgente' : 'Hay algo para revisar';
+  const todoAtendido = problemas.length && problemas.every(p => activo[p.k] && activo[p.k].resuelto);
+  const titulo = st === 'ok' ? 'Todo bien en el invernadero' : todoAtendido ? 'En atención' : st === 'crit' ? 'Atención urgente' : 'Hay algo para revisar';
   const detalle = st === 'ok'
     ? `<div class="d">Los valores están dentro de lo ideal para ${esc(nombreCultivo().toLowerCase())}.</div>`
-    : problemas.slice(0, 2).map(p => `<div class="d"><b>${esc(p.titulo)}</b><ul>${p.recomendaciones.slice(0, 2).map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`).join('');
+    : problemas.slice(0, 2).map(p => {
+        const a = activo[p.k];
+        if (a && a.resuelto) return `<div class="d"><b>${esc(p.titulo)}</b><span class="atendido">✓ Resuelto por ${esc(a.resuelto.por)} a las ${a.resuelto.hora}. Esperando que el valor vuelva a lo normal.</span></div>`;
+        return `<div class="d"><b>${esc(p.titulo)}</b><ul>${p.recomendaciones.slice(0, 2).map(x => `<li>${esc(x)}</li>`).join('')}</ul>${a ? `<button class="btn resolver" data-resolver="${a.id}">Marcar como resuelto</button>` : ''}</div>`;
+      }).join('');
   $('estado').dataset.st = st;
   $('estado').innerHTML = `<div class="ic">${icono}</div><div><div class="t">${titulo}</div>${detalle}</div>`;
   $('tiles').innerHTML = CLAVES.map(tarjeta).join('');
@@ -300,7 +314,7 @@ function pintarEncabezado() {
   $('nombreInv').textContent = cfg.invernadero.nombre || 'Mi invernadero';
   $('subInv').textContent = `${nombreCultivo()} · ${SISTEMAS[cfg.invernadero.sistema]}`;
   $('reloj').textContent = hora(minuto);
-  const n = Object.values(activo).filter(Boolean).length;
+  const n = Object.values(activo).filter(a => a && !a.resuelto).length;
   $('badge').hidden = !n; $('badge').textContent = n;
 }
 
@@ -309,9 +323,12 @@ function pintarEncabezado() {
 // ---------------------------------------------------------------------
 function pintarLista() {
   $('lista').innerHTML = historialAvisos.length ? historialAvisos.map(a => `
-    <div class="aviso ${a.estado}"><div class="hora">${a.hora}</div><div>
+    <div class="aviso ${a.estado} ${a.resuelto ? 'cerrado' : ''}"><div class="hora">${a.hora}</div><div>
       <div class="ttl">${esc(a.titulo)}</div>
-      ${a.recomendaciones ? `<ul>${a.recomendaciones.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+      ${a.recomendaciones && !a.resuelto ? `<ul>${a.recomendaciones.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+      ${a.resuelto ? `<div class="resuelto-por">${textoResuelto(a.resuelto)}</div>` : ''}
+      ${a.estado !== 'ok' && !a.resuelto ? `<button class="btn resolver" data-resolver="${a.id}">Marcar como resuelto</button>` : ''}
+      ${a.para && a.estado !== 'ok' ? `<div class="env">Enviado a: ${a.para.length ? a.para.map(p => `${esc(p.nombre)} (${esc(p.rol)})`).join(', ') : 'nadie (ningún rol recibe este nivel)'}</div>` : ''}
       ${a.sirena ? '<div class="env">También se encendió la sirena.</div>' : ''}
     </div></div>`).join('') : '<div class="vacio">Todavía no hubo avisos.</div>';
 }
@@ -366,6 +383,8 @@ function mostrar(t) {
   if (t === 'historial') pintarHistorial();
   if (t === 'avisos') pintarAvisos();
   if (t === 'config') pintarConfig();
+  if (t === 'config') pintarEquipo();
+  aplicarPermisos();
   window.scrollTo(0, 0);
 }
 document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) mostrar(b.dataset.tab); });
@@ -441,5 +460,165 @@ async function ciclo() {
   }
   pintarInicio(); pintarEncabezado();
 }
-window.addEventListener('DOMContentLoaded', () => { pintarInicio(); pintarEncabezado(); mostrar('inicio'); pintarPush(); });
+window.addEventListener('DOMContentLoaded', () => { pintarInicio(); pintarEncabezado(); mostrar('inicio'); pintarPush(); pintarRol(); });
 setInterval(ciclo, INTERVALO_MS);
+
+
+// ---------------------------------------------------------------------
+// 13. Equipo y roles
+//     Cada persona tiene un rol. El rol define:
+//       - qué avisos recibe (todos, solo urgentes o ninguno)
+//       - si puede cambiar la configuración
+//     Solo el Administrador gestiona el equipo.
+//     En la demo, el botón del encabezado permite "probar como" otra persona.
+//     En la versión real, cada persona entra con su usuario.
+// ---------------------------------------------------------------------
+const RECIBE = { todos: 'Todos los avisos', urgentes: 'Solo los urgentes', ninguno: 'Ningún aviso' };
+const EQUIPO_INICIAL = {
+  roles: {
+    admin:     { nombre: 'Administrador', desc: 'Configura todo y administra el equipo.', recibe: 'todos',    editar: true, fijo: true },
+    encargado: { nombre: 'Encargado',     desc: 'Atiende el invernadero día a día.',      recibe: 'todos',    editar: true },
+    operario:  { nombre: 'Operario',      desc: 'Ayuda en tareas puntuales.',             recibe: 'todos',    editar: false }
+  },
+  personas: [
+    { id: 'u1', nombre: 'Productor/a', rol: 'admin' },
+    { id: 'u2', nombre: 'Encargado/a', rol: 'encargado' },
+    { id: 'u3', nombre: 'Operario/a',  rol: 'operario' }
+  ],
+  actual: 'u1'
+};
+if (!cfg.equipo) { cfg.equipo = copiar(EQUIPO_INICIAL); guardar(); }   // agrega el equipo sin borrar la configuración existente
+
+const yo = () => cfg.equipo.personas.find(p => p.id === cfg.equipo.actual) || cfg.equipo.personas[0];
+const rolDe = p => cfg.equipo.roles[p.rol];
+const recibeNivel = (rol, estado) => rol.recibe === 'todos' || (rol.recibe === 'urgentes' && estado === 'crit');
+const meLlega = estado => recibeNivel(rolDe(yo()), estado);
+const puedeEditar = () => rolDe(yo()).editar;
+const esAdmin = () => yo().rol === 'admin';
+const destinatarios = estado => cfg.equipo.personas.filter(p => recibeNivel(rolDe(p), estado)).map(p => ({ nombre: p.nombre || 'Sin nombre', rol: rolDe(p).nombre }));
+const admins = () => cfg.equipo.personas.filter(p => p.rol === 'admin').length;
+const ICONO_PERSONA = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>';
+
+function pintarRol() {
+  const p = yo();
+  $('rolActual').innerHTML = `${ICONO_PERSONA}<span class="rn">${esc(p.nombre || 'Sin nombre')}</span><b>${esc(rolDe(p).nombre)}</b>`;
+  $('menuRol').innerHTML = '<div class="menu-t">Probar la app como (demo)</div>' + cfg.equipo.personas.map(x =>
+    `<button data-persona="${x.id}" aria-current="${x.id === p.id}"><span>${esc(x.nombre || 'Sin nombre')}</span><small>${esc(rolDe(x).nombre)}</small></button>`).join('');
+}
+function aplicarPermisos() {
+  const ed = puedeEditar(), ad = esAdmin(), r = rolDe(yo()).nombre;
+  document.querySelectorAll('.editable').forEach(el => { el.inert = !ed; el.classList.toggle('bloqueado', !ed); });
+  document.querySelectorAll('.solo-admin').forEach(el => { el.inert = !ad; el.classList.toggle('bloqueado', !ad); });
+  const msg = ed ? (ad ? '' : `Con el rol ${r} podés cambiar la configuración, pero solo el Administrador gestiona el equipo.`)
+                 : `Con el rol ${r} podés ver el estado y los avisos, pero no cambiar la configuración.`;
+  $('permisoConfig').textContent = msg; $('permisoConfig').hidden = !msg;
+  $('permisoAvisos').textContent = ed ? '' : `Con el rol ${r} no podés cambiar cuándo se envían los avisos.`; $('permisoAvisos').hidden = ed;
+}
+function pintarEquipo() {
+  const eq = cfg.equipo;
+  $('roles').innerHTML = Object.entries(eq.roles).map(([id, r]) => `
+    <div class="rolc" data-rol="${id}">
+      ${r.fijo ? `<strong>${esc(r.nombre)}</strong>` : `<input class="rol-nombre" id="rn-${id}" data-campo="nombre" value="${esc(r.nombre)}" aria-label="Nombre del rol">`}
+      <span class="hint" style="margin:0">${esc(r.desc)}</span>
+      <label class="fld">Recibe<select id="rr-${id}" data-campo="recibe">${Object.entries(RECIBE).map(([v, t]) => `<option value="${v}" ${r.recibe === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+      <label class="sw"><input type="checkbox" id="re-${id}" data-campo="editar" ${r.editar ? 'checked' : ''} ${r.fijo ? 'disabled' : ''}><span class="tr"></span>Puede cambiar la configuración</label>
+      <span class="hint" style="margin:0">${eq.personas.filter(p => p.rol === id).length} ${eq.personas.filter(p => p.rol === id).length === 1 ? 'persona' : 'personas'}</span>
+    </div>`).join('');
+  $('personas').innerHTML = eq.personas.map(p => `
+    <div class="persona" data-id="${p.id}">
+      <input id="pn-${p.id}" data-campo="nombre" value="${esc(p.nombre)}" placeholder="Nombre" aria-label="Nombre">
+      <select id="pr-${p.id}" data-campo="rol" aria-label="Rol">${Object.entries(eq.roles).map(([id, r]) => `<option value="${id}" ${p.rol === id ? 'selected' : ''}>${esc(r.nombre)}</option>`).join('')}</select>
+      <button class="btn" type="button" data-quitar="${p.id}">Quitar</button>
+    </div>`).join('');
+  $('equipoErr').textContent = '';
+}
+const equipoCambio = () => { guardar(); pintarRol(); aplicarPermisos(); };
+
+$('rolActual').addEventListener('click', e => { e.stopPropagation(); const m = $('menuRol'); m.hidden = !m.hidden; $('rolActual').setAttribute('aria-expanded', !m.hidden); });
+document.addEventListener('click', e => { if (!e.target.closest('#menuRol')) { $('menuRol').hidden = true; $('rolActual').setAttribute('aria-expanded', 'false'); } });
+$('menuRol').addEventListener('click', e => {
+  const b = e.target.closest('[data-persona]'); if (!b) return;
+  cfg.equipo.actual = b.dataset.persona; $('menuRol').hidden = true; equipoCambio();
+  const activa = document.querySelector('.tab[aria-selected="true"]').dataset.tab; mostrar(activa);
+  notificar({ estado: 'ok', titulo: `Ahora ves la app como ${yo().nombre || 'Sin nombre'} (${rolDe(yo()).nombre})` });
+});
+$('roles').addEventListener('change', e => {
+  const c = e.target.closest('[data-rol]'); if (!c) return; const r = cfg.equipo.roles[c.dataset.rol], campo = e.target.dataset.campo;
+  if (campo === 'recibe') r.recibe = e.target.value;
+  if (campo === 'editar') r.editar = e.target.checked;
+  if (campo === 'nombre') r.nombre = e.target.value.trim() || r.nombre;
+  equipoCambio(); pintarEquipo();
+});
+$('personas').addEventListener('input', e => {
+  if (e.target.dataset.campo !== 'nombre') return;
+  cfg.equipo.personas.find(p => p.id === e.target.closest('[data-id]').dataset.id).nombre = e.target.value; guardar(); pintarRol();
+});
+$('personas').addEventListener('change', e => {
+  if (e.target.dataset.campo !== 'rol') return;
+  const p = cfg.equipo.personas.find(x => x.id === e.target.closest('[data-id]').dataset.id);
+  if (p.rol === 'admin' && e.target.value !== 'admin' && admins() === 1) { e.target.value = 'admin'; $('equipoErr').textContent = 'Tiene que quedar al menos un Administrador.'; return; }
+  p.rol = e.target.value; equipoCambio(); pintarEquipo();
+});
+$('personas').addEventListener('click', e => {
+  const b = e.target.closest('[data-quitar]'); if (!b) return;
+  const p = cfg.equipo.personas.find(x => x.id === b.dataset.quitar);
+  if (p.rol === 'admin' && admins() === 1) { $('equipoErr').textContent = 'Tiene que quedar al menos un Administrador.'; return; }
+  if (p.id === cfg.equipo.actual) { $('equipoErr').textContent = 'No podés quitarte a vos mismo.'; return; }
+  cfg.equipo.personas = cfg.equipo.personas.filter(x => x.id !== p.id); equipoCambio(); pintarEquipo();
+});
+$('agregarPersona').addEventListener('click', () => {
+  const id = 'u' + Date.now().toString(36);
+  cfg.equipo.personas.push({ id, nombre: '', rol: 'operario' }); equipoCambio(); pintarEquipo(); $('pn-' + id).focus();
+});
+
+
+// ---------------------------------------------------------------------
+// 14. Avisos en modo broadcast y "Marcar como resuelto"
+//     El aviso llega a todos los celulares con la app instalada.
+//     La primera persona que lo atiende lo marca como resuelto:
+//       - desaparece como pendiente para todos
+//       - se ocultan sus recomendaciones (ya no corresponden)
+//       - queda registrado quién y a qué hora lo resolvió
+//     Si el valor se normaliza solo, o llega un aviso más grave del mismo
+//     parámetro, el aviso anterior también se cierra.
+// ---------------------------------------------------------------------
+function cerrarAvisos(clave, datos) {
+  historialAvisos.forEach(a => { if (a.clave === clave && a.estado !== 'ok' && !a.resuelto) a.resuelto = datos; });
+}
+function textoResuelto(r) {
+  if (r.auto === 'normalizado') return `✓ Se normalizó a las ${r.hora}`;
+  if (r.auto === 'reemplazado') return `Reemplazado por un aviso más grave a las ${r.hora}`;
+  return `✓ Resuelto por ${esc(r.por)} (${esc(r.rol)}) a las ${r.hora}`;
+}
+// En la demo, marcar como resuelto también "arregla" la simulación,
+// como si la persona hubiera corregido el problema en el invernadero.
+const ARREGLO_DEMO = {
+  temp: () => { delete sim.objetivo.temp; sim.activos.delete('calor'); },
+  hum: () => { delete sim.objetivo.hum; sim.activos.delete('calor'); },
+  ph: () => { delete sim.objetivo.ph; sim.activos.delete('ph'); },
+  ce: () => { delete sim.objetivo.ce; sim.activos.delete('ce'); },
+  nivel: () => { sim.vaciando = false; sim.activos.delete('caldo'); },
+  energia: () => { sim.energia = 'red'; sim.activos.delete('corte'); sim.activos.delete('apagon'); }
+};
+function resolverAviso(id) {
+  const a = historialAvisos.find(x => x.id === id); if (!a || a.resuelto) return;
+  a.resuelto = { por: yo().nombre || 'Sin nombre', rol: rolDe(yo()).nombre, hora: hora(minuto) };
+  if (MODO_DEMO && ARREGLO_DEMO[a.clave]) ARREGLO_DEMO[a.clave]();
+  else fetch(API + '/api/avisos/' + encodeURIComponent(id) + '/resolver', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ por: a.resuelto.por, rol: a.resuelto.rol }) }).catch(() => {});
+  notificar({ estado: 'ok', titulo: `${a.titulo}: resuelto por ${a.resuelto.por}`, hora: a.resuelto.hora });
+  pintarLista(); pintarInicio(); pintarEncabezado();
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-resolver]'); if (b) resolverAviso(b.dataset.resolver); });
+
+// Modo real: la lista de avisos (y quién los resolvió) viene del servidor,
+// así todos los celulares ven lo mismo.
+async function sincronizarAvisos() {
+  if (MODO_DEMO) return;
+  try {
+    const lista = await (await fetch(API + '/api/avisos', { cache: 'no-store' })).json();
+    historialAvisos = lista;
+    for (const k of CLAVES) activo[k] = lista.find(a => a.clave === k && a.estado !== 'ok' && !a.resuelto) || null;
+    if (!$('vista-avisos').hidden) pintarLista();
+  } catch (e) {}
+}
+if (!MODO_DEMO) setInterval(sincronizarAvisos, 15000);

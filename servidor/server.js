@@ -22,7 +22,7 @@ webpush.setVapidDetails('mailto:equipo@example.com', process.env.VAPID_PUBLICA, 
 
 // ---------- datos guardados ----------
 const LECHUGA = { temp: [15, 24], hum: [60, 80], ph: [5.8, 6.2], ce: [1.2, 1.8], nivelMin: 30 };
-let db = { config: { rangos: LECHUGA, avisos: { espera: 5, sirena: true, activos: { temp: true, hum: true, ph: true, ce: true, nivel: true, energia: true } } }, lecturas: [], cortes: [], suscripciones: [] };
+let db = { config: { rangos: LECHUGA, avisos: { espera: 5, sirena: true, activos: { temp: true, hum: true, ph: true, ce: true, nivel: true, energia: true } } }, lecturas: [], cortes: [], suscripciones: [], avisos: [] };
 try { db = { ...db, ...JSON.parse(fs.readFileSync(ARCHIVO, 'utf8')) }; } catch (e) {}
 let guardarPendiente = null;
 const guardar = () => { clearTimeout(guardarPendiente); guardarPendiente = setTimeout(() => fs.writeFile(ARCHIVO, JSON.stringify(db), () => {}), 2000); };
@@ -61,16 +61,31 @@ function revisar(l) {
   for (const k of Object.keys(CAMPO)) {
     const r = evaluar(k, l[CAMPO[k]]);
     if (r.estado === 'ok' || !activos[k]) {
-      if (activo[k]) enviarPush({ titulo: `${NOMBRE[k]}: volvió a la normalidad`, cuerpo: '', clave: k });
+      if (activo[k]) {
+        cerrarAvisos(k, { auto: 'normalizado' });
+        registrarAviso({ clave: k, estado: 'ok', titulo: `${NOMBRE[k]}: volvió a la normalidad` });
+        enviarPush({ titulo: `${NOMBRE[k]}: volvió a la normalidad`, cuerpo: '', clave: k });
+      }
       desde[k] = null; activo[k] = null; continue;
     }
     if (!desde[k]) desde[k] = ahora;
     if (ahora - desde[k] >= espera * 60e3 && (!activo[k] || peso(r.estado) > peso(activo[k]))) {
       activo[k] = r.estado;
-      enviarPush({ titulo: r.titulo, cuerpo: r.cuerpo, clave: k, urgente: r.estado === 'crit' });
+      cerrarAvisos(k, { auto: 'reemplazado' });
+      registrarAviso({ clave: k, estado: r.estado, titulo: r.titulo, recomendaciones: [r.cuerpo] });
+      enviarPush({ titulo: r.titulo, cuerpo: r.cuerpo, clave: k, urgente: r.estado === 'crit' });   // broadcast: a todos los celulares suscriptos
       // Si hay sirena, el ESP32 la enciende al leer "sirena: true" en la respuesta (ver POST /api/lecturas)
     }
   }
+}
+// Avisos guardados: todos los celulares ven la misma lista y quién resolvió cada uno
+const horaTxt = () => new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+function registrarAviso(a) {
+  db.avisos.unshift({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), hora: horaTxt(), resuelto: null, ...a });
+  db.avisos = db.avisos.slice(0, 100); guardar();
+}
+function cerrarAvisos(clave, datos) {
+  db.avisos.forEach(a => { if (a.clave === clave && a.estado !== 'ok' && !a.resuelto) a.resuelto = { ...datos, hora: horaTxt() }; });
 }
 async function enviarPush(msg) {
   const vivas = [];
@@ -103,6 +118,17 @@ app.post('/api/lecturas', (req, res) => {
   res.json({ ok: true, sirena, rangos: db.config.rangos });      // el ESP32 puede usar esto para encender la sirena
 });
 
+app.get('/api/avisos', (req, res) => res.json(db.avisos));
+// La primera persona que atiende el problema lo marca como resuelto; se avisa a todos
+app.post('/api/avisos/:id/resolver', (req, res) => {
+  const a = db.avisos.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ error: 'Aviso no encontrado' });
+  if (a.resuelto) return res.json({ ok: true, yaResuelto: a.resuelto });           // alguien llegó antes
+  a.resuelto = { por: String(req.body.por || 'Alguien').slice(0, 60), rol: String(req.body.rol || '').slice(0, 30), hora: horaTxt() };
+  guardar();
+  enviarPush({ titulo: `Resuelto: ${a.titulo}`, cuerpo: `Lo resolvió ${a.resuelto.por} a las ${a.resuelto.hora}.`, clave: a.clave });
+  res.json({ ok: true, resuelto: a.resuelto });
+});
 app.get('/api/estado', (req, res) => res.json(db.lecturas[db.lecturas.length - 1] || {}));
 
 // Promedios por hora para los gráficos del historial
