@@ -364,3 +364,20 @@ html,body{overflow-x:hidden}
 .aviso.cerrado .ttl{text-decoration:line-through;text-decoration-color:var(--muted);font-weight:600}
 .resuelto-por,.atendido{display:block;margin-top:4px;font-size:.88rem;font-weight:600;color:var(--ok)}
 .estado .btn.resolver{margin-top:8px}
+
+
+/* ===== logo (versión clara y oscura) ===== */
+.logo{display:inline-block;width:52px;height:52px;flex:none}
+.logo img{width:100%;height:100%;object-fit:contain;display:block}
+.logo .logo-oscuro{display:none}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .logo .logo-claro{display:none} :root:not([data-theme="light"]) .logo .logo-oscuro{display:block} }
+:root[data-theme="dark"] .logo .logo-claro{display:none}
+:root[data-theme="dark"] .logo .logo-oscuro{display:block}
+@media (max-width:700px){ .brand .logo{width:46px;height:46px} }
+
+/* pantalla de bienvenida */
+.splash{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--bg);transition:opacity .45s ease}
+.splash .logo{width:min(220px,56vw);height:auto;aspect-ratio:1}
+.splash strong{font-family:var(--display);font-size:1.5rem;letter-spacing:-.01em}
+.splash.fuera{opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){.splash{transition:none}}

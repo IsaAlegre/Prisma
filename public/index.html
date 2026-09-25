@@ -8,19 +8,24 @@
 <meta name="description" content="Monitoreo y avisos para invernaderos hidropónicos">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="iconos/icon-192.png">
-<link rel="apple-touch-icon" href="iconos/icon-192.png">
+<link rel="apple-touch-icon" href="iconos/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
+<div class="splash" id="splash" aria-hidden="true">
+  <span class="logo"><img class="logo-claro" src="iconos/logo-claro.png" alt="Logo de Monitor Hidropónico"><img class="logo-oscuro" src="iconos/logo-oscuro.png" alt="Logo de Monitor Hidropónico"></span>
+  <strong>Monitor Hidropónico</strong>
+</div>
+
 <div class="avisos-flotantes" id="toasts" aria-live="polite"></div>
 
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <span id="brandArt"></span>
+      <span class="logo"><img class="logo-claro" src="iconos/logo-claro.png" alt="Logo de Monitor Hidropónico"><img class="logo-oscuro" src="iconos/logo-oscuro.png" alt="Logo de Monitor Hidropónico"></span>
       <div><h1 id="nombreInv">Mi invernadero</h1><small id="subInv">Lechuga mantecosa</small></div>
     </div>
     <div class="pills">
@@ -133,7 +138,6 @@
         </label>
       </div>
       <p class="hint">Esperar unos minutos evita avisos por un cambio de un momento.</p>
-      <label class="sw"><input type="checkbox" id="sirena"><span class="tr"></span>Encender también la sirena del invernadero en avisos urgentes</label>
       <h3 class="sub">Avisarme de</h3>
       <div class="switches" id="switches"></div>
     </div>

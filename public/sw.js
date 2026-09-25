@@ -1,7 +1,7 @@
 /* Service worker: guarda la app para abrirla sin conexión
    y muestra las notificaciones push que manda el servidor. */
-const CACHE = 'monitor-hidro-v5';
-const ARCHIVOS = ['./', 'index.html', 'estilos.css', 'app.js', 'historial.js', 'manifest.webmanifest', 'iconos/icon-192.png', 'iconos/icon-512.png'];
+const CACHE = 'monitor-hidro-v6';
+const ARCHIVOS = ['./', 'index.html', 'estilos.css', 'app.js', 'historial.js', 'manifest.webmanifest', 'iconos/icon-192.png', 'iconos/icon-512.png', 'iconos/logo-claro.png', 'iconos/logo-oscuro.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARCHIVOS)).then(() => self.skipWaiting()));

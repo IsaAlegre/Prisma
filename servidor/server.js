@@ -22,7 +22,7 @@ webpush.setVapidDetails('mailto:equipo@example.com', process.env.VAPID_PUBLICA, 
 
 // ---------- datos guardados ----------
 const LECHUGA = { temp: [15, 24], hum: [60, 80], ph: [5.8, 6.2], ce: [1.2, 1.8], nivelMin: 30 };
-let db = { config: { rangos: LECHUGA, avisos: { espera: 5, sirena: true, activos: { temp: true, hum: true, ph: true, ce: true, nivel: true, energia: true } } }, lecturas: [], cortes: [], suscripciones: [], avisos: [] };
+let db = { config: { rangos: LECHUGA, avisos: { espera: 5, activos: { temp: true, hum: true, ph: true, ce: true, nivel: true, energia: true } } }, lecturas: [], cortes: [], suscripciones: [], avisos: [] };
 try { db = { ...db, ...JSON.parse(fs.readFileSync(ARCHIVO, 'utf8')) }; } catch (e) {}
 let guardarPendiente = null;
 const guardar = () => { clearTimeout(guardarPendiente); guardarPendiente = setTimeout(() => fs.writeFile(ARCHIVO, JSON.stringify(db), () => {}), 2000); };
@@ -74,7 +74,6 @@ function revisar(l) {
       cerrarAvisos(k, { auto: 'reemplazado' });
       registrarAviso({ clave: k, estado: r.estado, titulo: r.titulo, recomendaciones: [r.cuerpo] });
       enviarPush({ titulo: r.titulo, cuerpo: r.cuerpo, clave: k, urgente: r.estado === 'crit' });   // broadcast: a todos los celulares suscriptos
-      // Si hay sirena, el ESP32 la enciende al leer "sirena: true" en la respuesta (ver POST /api/lecturas)
     }
   }
 }
@@ -114,8 +113,7 @@ app.post('/api/lecturas', (req, res) => {
   db.lecturas = db.lecturas.filter(x => x.t >= limite);
   db.cortes = db.cortes.filter(x => x.inicio >= limite);
   revisar(l); guardar();
-  const sirena = db.config.avisos.sirena && Object.values(activo).includes('crit');
-  res.json({ ok: true, sirena, rangos: db.config.rangos });      // el ESP32 puede usar esto para encender la sirena
+  res.json({ ok: true, rangos: db.config.rangos });
 });
 
 app.get('/api/avisos', (req, res) => res.json(db.avisos));

@@ -71,7 +71,7 @@ let cfg = cargar() || {
   invernadero: { nombre: 'Mi invernadero', sistema: 'nft' },
   cultivo: 'lechuga',
   cultivos: { lechuga: { nombre: 'Lechuga', tipo: 'Mantecosa', fijo: true, rangos: copiar(LECHUGA) } },
-  avisos: { espera: 5, sirena: true, activos: { temp: true, hum: true, ph: true, ce: true, nivel: true, energia: true } }
+  avisos: { espera: 5, activos: { temp: true, hum: true, ph: true, ce: true, nivel: true, energia: true } }
 };
 const rangos = () => cfg.cultivos[cfg.cultivo].rangos;
 const nombreCultivo = (id = cfg.cultivo) => { const c = cfg.cultivos[id]; return c.tipo ? `${c.nombre} ${c.tipo.toLowerCase()}` : c.nombre; };
@@ -231,7 +231,7 @@ function revisarAvisos() {
     }
     if (desde[k] == null) desde[k] = minuto;
     if (minuto - desde[k] >= cfg.avisos.espera && (!activo[k] || peso(r.estado) > peso(activo[k].estado))) {
-      activo[k] = agregarAviso({ clave: k, ...r, sirena: r.estado === 'crit' && cfg.avisos.sirena });
+      activo[k] = agregarAviso({ clave: k, ...r });
     }
   }
 }
@@ -250,7 +250,7 @@ function agregarAviso(a) {
 function notificar(a) {
   const el = document.createElement('div');
   el.className = 'toast ' + a.estado;
-  el.innerHTML = `<div class="a">${esc(cfg.invernadero.nombre || 'Mi invernadero')} · ${a.hora || hora(minuto)}${a.sirena ? ' · sirena encendida' : ''}${a.para ? ` · a ${a.para.length} ${a.para.length === 1 ? 'persona' : 'personas'}` : ''}</div><div class="b">${esc(a.titulo)}</div>${a.recomendaciones ? `<div class="c">${esc(a.recomendaciones[0])}</div>` : ''}`;
+  el.innerHTML = `<div class="a">${esc(cfg.invernadero.nombre || 'Mi invernadero')} · ${a.hora || hora(minuto)}${a.para ? ` · a ${a.para.length} ${a.para.length === 1 ? 'persona' : 'personas'}` : ''}</div><div class="b">${esc(a.titulo)}</div>${a.recomendaciones ? `<div class="c">${esc(a.recomendaciones[0])}</div>` : ''}`;
   $('toasts').prepend(el);
   const maximo = window.matchMedia('(max-width:700px)').matches ? 1 : 3;   // en el celular, de a uno
   while ($('toasts').children.length > maximo) $('toasts').lastChild.remove();
@@ -310,7 +310,6 @@ function pintarInicio() {
 }
 function pintarEncabezado() {
   const c = cfg.cultivos[cfg.cultivo];
-  $('brandArt').innerHTML = imagen(c);
   $('nombreInv').textContent = cfg.invernadero.nombre || 'Mi invernadero';
   $('subInv').textContent = `${nombreCultivo()} · ${SISTEMAS[cfg.invernadero.sistema]}`;
   $('reloj').textContent = hora(minuto);
@@ -329,13 +328,11 @@ function pintarLista() {
       ${a.resuelto ? `<div class="resuelto-por">${textoResuelto(a.resuelto)}</div>` : ''}
       ${a.estado !== 'ok' && !a.resuelto ? `<button class="btn resolver" data-resolver="${a.id}">Marcar como resuelto</button>` : ''}
       ${a.para && a.estado !== 'ok' ? `<div class="env">Enviado a: ${a.para.length ? a.para.map(p => `${esc(p.nombre)} (${esc(p.rol)})`).join(', ') : 'nadie (ningún rol recibe este nivel)'}</div>` : ''}
-      ${a.sirena ? '<div class="env">También se encendió la sirena.</div>' : ''}
     </div></div>`).join('') : '<div class="vacio">Todavía no hubo avisos.</div>';
 }
 function pintarAvisos() {
   pintarPush(); pintarLista();
   $('espera').value = String(cfg.avisos.espera);
-  $('sirena').checked = cfg.avisos.sirena;
   $('switches').innerHTML = CLAVES.map(k => `<label class="sw"><input type="checkbox" id="sw-${k}" data-sw="${k}" ${cfg.avisos.activos[k] ? 'checked' : ''}><span class="tr"></span>${NOMBRES_AVISO[k]}</label>`).join('');
 }
 
@@ -398,7 +395,6 @@ $('demo').addEventListener('click', e => {
   pintarInicio(); hojaDemo(false);
 });
 $('espera').addEventListener('change', e => { cfg.avisos.espera = +e.target.value; guardar(); pintarInicio(); });
-$('sirena').addEventListener('change', e => { cfg.avisos.sirena = e.target.checked; guardar(); });
 $('switches').addEventListener('change', e => { const k = e.target.dataset.sw; if (!k) return; cfg.avisos.activos[k] = e.target.checked; guardar(); pintarInicio(); });
 
 $('cultivos').addEventListener('click', e => {
@@ -460,6 +456,8 @@ async function ciclo() {
   }
   pintarInicio(); pintarEncabezado();
 }
+// Pantalla de bienvenida con el logo: se muestra al abrir la app y se va sola
+window.addEventListener('load', () => setTimeout(() => { $('splash').classList.add('fuera'); setTimeout(() => $('splash').remove(), 500); }, 1200));
 window.addEventListener('DOMContentLoaded', () => { pintarInicio(); pintarEncabezado(); mostrar('inicio'); pintarPush(); pintarRol(); });
 setInterval(ciclo, INTERVALO_MS);
 
