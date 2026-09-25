@@ -1,0 +1,164 @@
+<title>Monitor Hidropónico</title>
+<meta name="theme-color" content="#1D6B52">
+<meta name="description" content="Monitoreo y avisos para invernaderos hidropónicos">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="iconos/icon-192.png">
+<link rel="apple-touch-icon" href="iconos/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="estilos.css">
+
+<div class="avisos-flotantes" id="toasts" aria-live="polite"></div>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span id="brandArt"></span>
+      <div><h1 id="nombreInv">Mi invernadero</h1><small id="subInv">Lechuga mantecosa</small></div>
+    </div>
+    <div class="pills">
+      <span class="pill" id="conexion"><span class="dot"></span>ESP32 · Wi-Fi</span>
+      <span class="pill mono" id="reloj">--:--</span>
+      <button class="pill instalar" id="instalar" hidden>Instalar en el celular</button>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Secciones">
+    <button class="tab" role="tab" data-tab="inicio" aria-selected="true">Inicio</button>
+    <button class="tab" role="tab" data-tab="historial" aria-selected="false">Historial</button>
+    <button class="tab" role="tab" data-tab="avisos" aria-selected="false">Avisos <span class="badge" id="badge" hidden>0</span></button>
+    <button class="tab" role="tab" data-tab="config" aria-selected="false">Configurar</button>
+  </nav>
+
+  <!-- INICIO -->
+  <section id="vista-inicio" role="tabpanel">
+    <div class="estado" id="estado"></div>
+    <div class="tiles" id="tiles"></div>
+    <button class="fab" id="abrirDemo" aria-expanded="false" aria-controls="demo">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 3l14 9-14 9V3z"/></svg>Simular
+    </button>
+    <div class="hoja" id="demo" hidden>
+      <div class="hoja-h"><strong>Modo demostración</strong><button class="cerrar" id="cerrarDemo" aria-label="Cerrar">×</button></div>
+      <p class="hint">Elegí qué pasa en el invernadero. 1 segundo equivale a 1 minuto.</p>
+      <div class="demo-btns">
+        <button class="chip" data-sim="calor">Mucho calor</button>
+        <button class="chip" data-sim="ph">pH alto</button>
+        <button class="chip" data-sim="ce">Solución diluida</button>
+        <button class="chip" data-sim="caldo">Baja el caldo</button>
+        <button class="chip" data-sim="corte">Corte de luz</button>
+        <button class="chip" data-sim="apagon">Corte y el grupo no arranca</button>
+        <button class="chip ok" data-sim="normal">Volver a la normalidad</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- HISTORIAL -->
+  <section id="vista-historial" role="tabpanel" hidden>
+    <div class="h-controles">
+      <div class="chips" id="hParam" role="group" aria-label="Parámetro"></div>
+      <div class="seg" id="hPeriodo" role="group" aria-label="Período">
+        <button data-p="24" aria-pressed="false">Últimas 24 h</button>
+        <button data-p="168" aria-pressed="true">Últimos 7 días</button>
+      </div>
+    </div>
+    <div class="stats" id="hStats"></div>
+    <div class="panel">
+      <h2 id="hTituloLinea">Temperatura</h2>
+      <p class="hint" id="hSubLinea"></p>
+      <div class="chart" id="gLinea"></div>
+      <details class="tabla-datos"><summary>Ver resumen por día</summary><div class="tbl-wrap" id="hTabla"></div></details>
+    </div>
+    <div class="dos">
+      <div class="panel">
+        <h2>Cómo se reparten los valores</h2>
+        <p class="hint">Cantidad de horas en cada franja. La zona verde es el rango ideal.</p>
+        <div class="chart" id="gHisto"></div>
+      </div>
+      <div class="panel">
+        <h2>Recomendaciones</h2>
+        <p class="hint">Surgen de lo que pasó en el período.</p>
+        <div class="recos" id="hRecos"></div>
+      </div>
+    </div>
+    <div class="dos">
+      <div class="panel">
+        <h2>Tiempo dentro del rango</h2>
+        <div class="leyenda" aria-hidden="true"><span><i class="sw-bajo"></i>Bajo</span><span><i class="sw-ok"></i>En rango</span><span><i class="sw-alto"></i>Alto</span></div>
+        <div id="gRango"></div>
+      </div>
+      <div class="panel">
+        <h2>Avisos por día</h2>
+        <p class="hint">Últimos 7 días, todos los parámetros.</p>
+        <div class="chart" id="gAvisos"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AVISOS -->
+  <section id="vista-avisos" role="tabpanel" hidden>
+    <div class="panel">
+      <h2>Notificaciones en este celular</h2>
+      <p class="hint" id="pushEstado">Activá las notificaciones para recibir los avisos aunque la app esté cerrada.</p>
+      <div class="acciones"><button class="btn primary" id="activarPush">Activar notificaciones</button><button class="btn" id="probarPush">Enviar una prueba</button></div>
+    </div>
+    <div class="panel">
+      <h2>Últimos avisos</h2>
+      <div class="lista" id="lista"></div>
+    </div>
+    <div class="panel">
+      <h2>Cuándo te avisamos</h2>
+      <div class="form-grid">
+        <label class="fld">Esperar antes de avisar
+          <select id="espera">
+            <option value="0">Avisar enseguida</option>
+            <option value="5">5 minutos</option>
+            <option value="10">10 minutos</option>
+            <option value="15">15 minutos</option>
+          </select>
+        </label>
+      </div>
+      <p class="hint">Esperar unos minutos evita avisos por un cambio de un momento.</p>
+      <label class="sw"><input type="checkbox" id="sirena"><span class="tr"></span>Encender también la sirena del invernadero en avisos urgentes</label>
+      <h3 class="sub">Avisarme de</h3>
+      <div class="switches" id="switches"></div>
+    </div>
+  </section>
+
+  <!-- CONFIGURAR -->
+  <section id="vista-config" role="tabpanel" hidden>
+    <div class="panel">
+      <h2>Mi cultivo</h2>
+      <div class="cultivos" id="cultivos"></div>
+      <div id="tipoCultivo"></div>
+      <form class="nuevo" id="nuevo" hidden>
+        <h3>Nuevo producto</h3>
+        <div class="form-grid">
+          <label class="fld">Nombre<input id="nNombre" placeholder="Ej.: Rúcula"></label>
+          <label class="fld">Tipo o variedad<input id="nTipo" placeholder="Ej.: Silvestre"></label>
+          <div class="fld">Foto (opcional)<div class="foto"><span id="nPrev"></span><input type="file" id="nFoto" accept="image/*"></div></div>
+        </div>
+        <div class="err" id="nErr"></div>
+        <div class="acciones"><button class="btn primary" type="submit">Guardar producto</button><button class="btn" type="button" id="nCancelar">Cancelar</button></div>
+      </form>
+    </div>
+    <div class="panel">
+      <h2>Valores ideales</h2>
+      <p class="hint">Si un valor sale de este rango, te avisamos.</p>
+      <div class="rangos" id="rangos"></div>
+      <div class="acciones"><button class="btn" id="restablecer">Volver a los valores recomendados</button><span class="hint" id="guardado"></span></div>
+    </div>
+    <div class="panel">
+      <h2>Mi invernadero</h2>
+      <div class="form-grid">
+        <label class="fld">Nombre<input id="invNombre" placeholder="Ej.: Invernadero norte"></label>
+        <label class="fld">Sistema<select id="invSistema"></select></label>
+      </div>
+    </div>
+  </section>
+
+  <footer>Las lecturas llegan desde un ESP32 conectado por Wi-Fi. En esta demostración son simuladas. Los valores de lechuga son orientativos: conviene validarlos con un técnico. El sistema avisa y recomienda; el productor decide qué hacer.</footer>
+</div>
+
+<script src="app.js"></script>
+<script src="historial.js"></script>
